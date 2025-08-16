@@ -1,0 +1,116 @@
+-------------------------------PARTE 1-------------------------------------
+#include <ros.h>
+#include <std_msgs/String.h>
+#include <SoftwareSerial.h>
+
+SoftwareSerial softSerial(3, 4);  // D3 a PA1 ATtiny
+
+ros::NodeHandle nh;
+
+void messageCb(const std_msgs::String& msg) {
+  softSerial.println(msg.data);
+}
+
+ros::Subscriber<std_msgs::String> sub("chatter", &messageCb);
+
+void setup() {
+  softSerial.begin(57600);
+  nh.initNode();
+  nh.subscribe(sub);
+}
+
+void loop() {
+  nh.spinOnce();
+}
+--PRIMERO HACER LO DE PROGRAMADOR, LUGEGO SUBIR ESTE
+-------------------------PARTE 2-----------------------------------
+#include <SoftwareSerial.h>
+#include <U8g2lib.h>
+
+// RX = PA1, TX = PA0 (aunque TX no se usa)
+SoftwareSerial softSerial(PIN_PA1, PIN_PA0);
+
+// OLED por I2C con software (SCL = PA3, SDA = PA2)
+// Versión sin framebuffer para ahorrar RAM
+U8G2_SSD1306_128X64_NONAME_1_SW_I2C oled(U8G2_R0, /* clock=*/PIN_PA3, /* data=*/PIN_PA2, /* reset=*/U8X8_PIN_NONE);
+
+
+char buffer[64]; // Buffer de texto para mostrar en pantalla
+uint8_t idx = 0;
+
+void setup() {
+  oled.begin();
+  oled.firstPage();
+  do {
+    oled.setFont(u8g2_font_ncenB08_tr);
+    oled.drawStr(0, 20, "Esperando ROS...");
+  } while (oled.nextPage());
+
+  softSerial.begin(57600);
+}
+
+void loop() {
+  while (softSerial.available()) {
+    char c = softSerial.read();
+
+    if (c == '\n') {
+      buffer[idx] = '\0';
+
+      oled.firstPage();
+      do {
+        oled.setFont(u8g2_font_ncenB08_tr);
+        oled.drawStr(0, 24, buffer);
+      } while (oled.nextPage());
+
+      idx = 0;
+    } else if (idx < sizeof(buffer) - 1) {
+      buffer[idx++] = c;
+    }
+  }
+}
+
+
+
+-------------------PRUEBA 3-----------------------
+
+#include <SoftwareSerial.h>
+#include <U8g2lib.h>
+
+// RX = PA1, TX = PA0 (aunque TX no se usa)
+SoftwareSerial softSerial(PIN_PA1, PIN_PA0);
+
+// OLED por I2C con software (SCL = PA3, SDA = PA2)
+U8G2_SSD1306_128X64_NONAME_F_SW_I2C oled(U8G2_R0, /* clock=*/PIN_PA3, /* data=*/PIN_PA2, /* reset=*/U8X8_PIN_NONE);
+
+String buffer = "";
+
+void setup() {
+  oled.begin();
+  oled.clearBuffer();
+  oled.setFont(u8g2_font_ncenB08_tr);
+  oled.drawStr(0, 20, "Esperando ROS...");
+  oled.sendBuffer();
+
+  softSerial.begin(57600); // Debe coincidir con rosserial en el Nano
+}
+
+void loop() {
+  while (softSerial.available()) {
+    char c = softSerial.read();
+
+    if (c == '\n') {
+      oled.clearBuffer();
+      oled.setFont(u8g2_font_ncenB08_tr);
+      oled.drawStr(0, 24, buffer.c_str());
+      oled.sendBuffer();
+      buffer = "";
+    } else {
+      buffer += c;
+    }
+  }
+}
+--> VER SI FUNCIONA: 
+
+terminal 1: roscore
+terminal 2: rostopic pub /chatter std_msgs/String "data: \"Hola desde ROS\""
+--> resultado en pantalla
