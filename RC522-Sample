@@ -1,0 +1,162 @@
+# 🔐 Proyecto RFID – Control de Acceso con Arduino Nano
+
+Proyecto sencillo pero **realista** de control de acceso usando **RFID**, LEDs y Arduino Nano. Ideal como proyecto maker, aprendizaje de electrónica y para documentar en GitHub.
+
+---
+
+## 🧠 Descripción
+
+El sistema permite:
+
+* Leer una tarjeta o llavero RFID
+* Comparar su **UID** con uno autorizado
+* Indicar el resultado mediante LEDs:
+
+  * 🟢 Verde → acceso permitido
+  * 🔴 Rojo → acceso denegado
+
+Este tipo de sistema se usa en **puertas**, **PCs**, **armarios**, **makerspaces**, etc.
+
+---
+
+## 🧩 Componentes usados
+
+* Arduino Nano
+* Módulo RFID **RC522**
+* Tarjeta o llavero RFID
+* 1 LED verde
+* 1 LED rojo
+* 2 resistencias (220–330 Ω)
+* Cables Dupont
+
+---
+
+## 🔌 Conexiones
+
+### 📡 RC522 → Arduino Nano
+
+| RC522 | Arduino Nano     |
+| ----- | ---------------- |
+| SDA   | D10              |
+| SCK   | D13              |
+| MOSI  | D11              |
+| MISO  | D12              |
+| RST   | D9               |
+| IRQ   | *(sin conectar)* |
+| 3.3V  | 3.3V ⚠️          |
+| GND   | GND              |
+
+⚠️ **Importante:** el RC522 funciona solo a **3.3 V**, nunca a 5 V.
+
+---
+
+### 💡 LEDs
+
+* LED verde → pin **D3** + resistencia → GND
+* LED rojo → pin **D4** + resistencia → GND
+
+(Respetar polaridad del LED)
+
+---
+
+## 🆔 UID autorizado
+
+UID leído de la tarjeta:
+
+```text
+0xCC 0x86 0x5A 0xD3
+```
+
+Este UID se usará como tarjeta válida.
+
+---
+
+## 🧪 Código Arduino
+
+```cpp
+#include <SPI.h>
+#include <MFRC522.h>
+
+#define SS_PIN 10
+#define RST_PIN 9
+
+MFRC522 mfrc522(SS_PIN, RST_PIN);
+
+int ledVerde = 3;
+int ledRojo = 4;
+
+byte UID_OK[] = {0xCC, 0x86, 0x5A, 0xD3};
+
+void setup() {
+  Serial.begin(9600);
+  SPI.begin();
+  mfrc522.PCD_Init();
+
+  pinMode(ledVerde, OUTPUT);
+  pinMode(ledRojo, OUTPUT);
+
+  Serial.println("Sistema RFID listo");
+}
+
+void loop() {
+  if (!mfrc522.PICC_IsNewCardPresent()) return;
+  if (!mfrc522.PICC_ReadCardSerial()) return;
+
+  bool acceso = true;
+
+  for (byte i = 0; i < 4; i++) {
+    if (mfrc522.uid.uidByte[i] != UID_OK[i]) {
+      acceso = false;
+      break;
+    }
+  }
+
+  if (acceso) {
+    digitalWrite(ledVerde, HIGH);
+    digitalWrite(ledRojo, LOW);
+    Serial.println("Acceso permitido");
+  } else {
+    digitalWrite(ledVerde, LOW);
+    digitalWrite(ledRojo, HIGH);
+    Serial.println("Acceso denegado");
+  }
+
+  delay(2000);
+  digitalWrite(ledVerde, LOW);
+  digitalWrite(ledRojo, LOW);
+}
+```
+
+---
+
+## ✅ Funcionamiento
+
+* Al acercar la **tarjeta autorizada**:
+
+  * LED verde encendido
+  * Mensaje `Acceso permitido`
+
+* Al acercar una **tarjeta no autorizada**:
+
+  * LED rojo encendido
+  * Mensaje `Acceso denegado`
+
+---
+
+## 🚀 Posibles mejoras
+
+* Añadir **pantalla LCD 1602**
+* Varias tarjetas (admin / usuario)
+* Temporizador de bloqueo
+* Control de relé o botón de encendido de PC
+* Registro por puerto serie
+
+---
+
+## 🧑‍💻 Autor
+
+Proyecto maker realizado con Arduino y hardware reciclado.
+
+---
+
+> Proyecto simple, barato y totalmente funcional. Ideal para aprender electrónica, SPI y sistemas de control de acceso.
